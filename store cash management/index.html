@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Cash Management Dashboard</title>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Header -->
+        <header>
+            <h1 class="display-4">🏪 Store Cash Dashboard</h1>
+            <p class="lead">Manage your cash inflows, outflows, and get insights every day</p>
+        </header>
+
+        <!-- Slideshow -->
+        <div class="slideshow-container">
+            <!-- Info Slide -->
+            <div class="slide fade">
+                <img src="https://source.unsplash.com/800x400/?shop,cash,register" alt="Slide 1" class="slide-img" />
+                <div class="caption">Welcome! See your store's cash status at a glance.</div>
+            </div>
+            <!-- Monthly Expense Doughnut Chart Slide -->
+            <div class="slide fade">
+                <canvas id="slideMonthlyExpenseChart" width="800" height="400"></canvas>
+                <div class="caption">Monthly expense breakdown for the store</div>
+            </div>
+            <!-- Trend Line Chart Slide -->
+            <div class="slide fade">
+                <canvas id="slideTrendChart" width="800" height="400"></canvas>
+                <div class="caption">Expense and income trend overview</div>
+            </div>
+            <!-- Info Slide 2 -->
+            <div class="slide fade">
+                <img src="https://source.unsplash.com/800x400/?accounting,finance,shop" alt="Slide 2" class="slide-img" />
+                <div class="caption">Add new inflows or outflows easily!</div>
+            </div>
+            <span class="prev">&#10094;</span>
+            <span class="next">&#10095;</span>
+        </div>
+
+        <!-- Dashboard Summary Cards -->
+        <div class="dashboard">
+            <div class="card">
+                <h6>Opening Cash</h6>
+                <h2 id="openingCash">₹0.00</h2>
+            </div>
+            <div class="card">
+                <h6>Total Cash In</h6>
+                <h2 id="cashInTotal">₹0.00</h2>
+            </div>
+            <div class="card">
+                <h6>Total Cash Out</h6>
+                <h2 id="cashOutTotal">₹0.00</h2>
+            </div>
+            <div class="card">
+                <h6>Cash On Hand</h6>
+                <h2 id="cashOnHand">₹0.00</h2>
+            </div>
+            <div class="card">
+                <h6>Transactions</h6>
+                <h2 id="transactionCount">0</h2>
+            </div>
+        </div>
+
+        <!-- Forms -->
+        <div class="form-row">
+            <!-- Opening Cash -->
+            <div class="card">
+                <h5>🔑 Set Opening Cash</h5>
+                <form id="openingCashForm">
+                    <input type="number" id="openingCashAmount" placeholder="Opening Cash (₹)" class="form-control" required>
+                    <button type="submit" class="btn primary">Set Opening</button>
+                </form>
+            </div>
+            <!-- Cash Inflow -->
+            <div class="card">
+                <h5>➕ Add Cash Inflow</h5>
+                <form id="cashInForm">
+                    <input type="number" id="cashInAmount" placeholder="Amount" class="form-control" required>
+                    <input type="date" id="transactionDateIn" class="form-control" required>
+                    <input type="text" id="cashInReason" placeholder="Reason (sales, deposit, etc)" class="form-control" required>
+                    <select id="cashInMethod" class="form-select" required>
+                        <option value="">Method...</option>
+                        <option>Cash</option>
+                        <option>Bank Deposit</option>
+                        <option>Digital Wallet</option>
+                    </select>
+                    <div class="form-actions">
+                        <button type="reset" class="btn">Clear</button>
+                        <button type="submit" class="btn primary">Add Inflow</button>
+                    </div>
+                </form>
+            </div>
+            <!-- Cash Outflow -->
+            <div class="card">
+                <h5>➖ Add Cash Outflow</h5>
+                <form id="cashOutForm">
+                    <input type="number" id="cashOutAmount" placeholder="Amount" class="form-control" required>
+                    <input type="date" id="transactionDateOut" class="form-control" required>
+                    <input type="text" id="cashOutReason" placeholder="Reason (expense, supplier, etc)" class="form-control" required>
+                    <select id="cashOutMethod" class="form-select" required>
+                        <option value="">Method...</option>
+                        <option>Cash</option>
+                        <option>Bank Withdrawal</option>
+                        <option>Digital Payment</option>
+                    </select>
+                    <div class="form-actions">
+                        <button type="reset" class="btn">Clear</button>
+                        <button type="submit" class="btn primary danger">Add Outflow</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Extra Charts for Dashboard View -->
+        <div class="dashboard" style="gap:48px;">
+            <div class="card" style="height:370px;">
+                <h5 style="margin-bottom:8px;">Expense vs Income</h5>
+                <canvas id="cashChart"></canvas>
+            </div>
+            <div class="card" style="height:370px;">
+                <h5 style="margin-bottom:8px;">Cash Flow Trend</h5>
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Transaction Table -->
+        <div class="card" style="margin-top:32px;">
+            <h5>📋 Transaction History</h5>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Reason</th>
+                            <th>Method</th>
+                            <th>Amount</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS for Chart.js, Dashboard Logic, and Slideshow -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+    // Slideshow code
+    let slideIndex = 0;
+    const slides = document.getElementsByClassName("slide");
+    const prev = document.querySelector(".prev");
+    const next = document.querySelector(".next");
+
+    function showSlide(index) {
+        for(let i=0; i<slides.length; i++) slides[i].style.display = "none";
+        slides[index].style.display = "block";
+        // Monthly Expense Chart in Slideshow
+        if (slides[index].querySelector("#slideMonthlyExpenseChart")) {
+            window.storeCashManager && window.storeCashManager.renderSlideshowMonthlyExpenseChart();
+        }
+        // Trend Chart in Slideshow
+        if (slides[index].querySelector("#slideTrendChart")) {
+            window.storeCashManager && window.storeCashManager.renderSlideshowTrendChart();
+        }
+    }
+    function nextSlide() { slideIndex = (slideIndex + 1) % slides.length; showSlide(slideIndex);}
+    function prevSlide() { slideIndex = (slideIndex - 1 + slides.length) % slides.length; showSlide(slideIndex);}
+    prev.onclick = prevSlide; next.onclick = nextSlide; setInterval(nextSlide, 5000); showSlide(slideIndex);
+
+    // StoreCashManager definition (same as provided previously), plus slideshow chart rendering
+    class StoreCashManager {
+        constructor() {
+            this.transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+            this.openingCash = parseFloat(localStorage.getItem('openingCash')) || 0;
+            this.cashChart = null;
+            this.trendChart = null;
+            this.slideshowMonthlyExpenseChart = null;
+            this.slideshowTrendChart = null;
+
+            this.initializeEventListeners();
+            this.updateDashboard();
+            this.initializeCharts();
+        }
+        initializeEventListeners() {
+            document.getElementById('cashInForm').addEventListener('submit', (e) => {
+                e.preventDefault(); this.addTransaction('in');
+            });
+            document.getElementById('cashOutForm').addEventListener('submit', (e) => {
+                e.preventDefault(); this.addTransaction('out');
+            });
+            document.getElementById('openingCashForm').addEventListener('submit', (e) => {
+                e.preventDefault(); this.setOpeningCash();
+            });
+            document.getElementById('transactionDateIn').valueAsDate = new Date();
+            document.getElementById('transactionDateOut').valueAsDate = new Date();
+        }
+        addTransaction(type) {
+            const amount = parseFloat(document.getElementById(type === 'in' ? 'cashInAmount' : 'cashOutAmount').value);
+            const date = document.getElementById(type === 'in' ? 'transactionDateIn' : 'transactionDateOut').value;
+            const reason = document.getElementById(type === 'in' ? 'cashInReason' : 'cashOutReason').value;
+            const paymentMethod = document.getElementById(type === 'in' ? 'cashInMethod' : 'cashOutMethod').value;
+            const transaction = { id: Date.now(), type, amount, date, reason, paymentMethod, timestamp: new Date().toISOString() };
+            this.transactions.push(transaction); this.saveToLocalStorage(); this.updateDashboard();
+            this.resetForm(type === 'in' ? 'cashInForm' : 'cashOutForm');
+            this.showNotification(`${type === 'in' ? "Cash Inflow" : "Cash Outflow"} added!`, type === 'in' ? 'success' : 'danger');
+        }
+        setOpeningCash() {
+            const openingAmount = parseFloat(document.getElementById('openingCashAmount').value);
+            this.openingCash = openingAmount; localStorage.setItem('openingCash', openingAmount.toString());
+            this.updateDashboard(); this.resetForm('openingCashForm');
+            this.showNotification('Opening cash set!', 'info');
+        }
+        deleteTransaction(id) {
+            this.transactions = this.transactions.filter(tr => tr.id !== id); this.saveToLocalStorage();
+            this.updateDashboard(); this.showNotification('Transaction deleted!', 'warning');
+        }
+        saveToLocalStorage() { localStorage.setItem('transactions', JSON.stringify(this.transactions));}
+        resetForm(formId) {
+            document.getElementById(formId).reset();
+            if (formId === 'cashInForm') document.getElementById('transactionDateIn').valueAsDate = new Date();
+            if (formId === 'cashOutForm') document.getElementById('transactionDateOut').valueAsDate = new Date();
+        }
+        updateDashboard() {
+            this.updateSummaryCards(); this.updateTransactionTable(); this.updateCharts();
+        }
+        updateSummaryCards() {
+            const inTotal = this.transactions.filter(t => t.type === 'in').reduce((sum, t) => sum + t.amount, 0);
+            const outTotal = this.transactions.filter(t => t.type === 'out').reduce((sum, t) => sum + t.amount, 0);
+            const cashOnHand = this.openingCash + inTotal - outTotal;
+            const transactionCount = this.transactions.length;
+            document.getElementById('openingCash').textContent = `₹${this.openingCash.toFixed(2)}`;
+            document.getElementById('cashInTotal').textContent = `₹${inTotal.toFixed(2)}`;
+            document.getElementById('cashOutTotal').textContent = `₹${outTotal.toFixed(2)}`;
+            document.getElementById('cashOnHand').textContent = `₹${cashOnHand.toFixed(2)}`;
+            document.getElementById('transactionCount').textContent = transactionCount;
+        }
+        updateTransactionTable() {
+            const tableBody = document.getElementById('transactionTable');
+            tableBody.innerHTML = '';
+            const sortedTransactions = [...this.transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+            sortedTransactions.forEach(tr => {
+                const row = document.createElement('tr');
+                row.className = 'fade-in';
+                row.innerHTML = `
+                    <td>${new Date(tr.date).toLocaleDateString()}</td>
+                    <td>${tr.type === 'in' ? 'Cash Inflow' : 'Cash Outflow' }</td>
+                    <td>${tr.reason}</td>
+                    <td>${tr.paymentMethod}</td>
+                    <td class="fw-bold" style="color:${tr.type === 'in' ? '#27ae60' : '#e74c3c'}">₹${tr.amount.toFixed(2)}</td>
+                    <td>
+                        <button class="btn small danger" onclick="storeCashManager.deleteTransaction(${tr.id})">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        initializeCharts() { this.updateCharts();}
+        updateCharts() { this.updateCashChart(); this.updateTrendChart();}
+        updateCashChart() {
+            if (!window.Chart) return;
+            const ctx = document.getElementById('cashChart').getContext('2d');
+            const inTotal = this.transactions.filter(t => t.type === 'in').reduce((sum, t) => sum + t.amount, 0);
+            const outTotal = this.transactions.filter(t => t.type === 'out').reduce((sum, t) => sum + t.amount, 0);
+            if (this.cashChart) this.cashChart.destroy();
+            this.cashChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ["Inflow", "Outflow"],
+                    datasets: [{
+                        data: [inTotal, outTotal],
+                        backgroundColor: [ '#27ae60', '#e74c3c' ],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+        }
+        updateTrendChart() {
+            if (!window.Chart) return;
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            const daily = {};
+            this.transactions.forEach(tr => {
+                const date = new Date(tr.date);
+                const key = date.toISOString().split('T')[0];
+                daily[key] = daily[key] || { in: 0, out: 0 };
+                daily[key][tr.type] += tr.amount;
+            });
+            const days = Object.keys(daily).sort();
+            const inAmounts = days.map(d => daily[d].in);
+            const outAmounts = days.map(d => daily[d].out);
+            if (this.trendChart) this.trendChart.destroy();
+            this.trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: days,
+                    datasets: [
+                        {
+                            label: 'Cash In',
+                            data: inAmounts,
+                            borderColor: '#27ae60',
+                            backgroundColor: 'rgba(39,174,96,0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Cash Out',
+                            data: outAmounts,
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231,76,60,0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' }},
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) { return '₹' + value;}
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type} fade-in`;
+            notification.style.cssText = `
+                position:fixed; top:20px; right:20px; z-index:2000; min-width:200px; font-weight:bold;
+            `;
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn small" style="float:right;" onclick="this.parentElement.remove()">×</button>
+            `;
+            document.body.appendChild(notification);
+            setTimeout(() => { if (notification.parentNode) notification.remove(); }, 3000);
+        }
+
+        // Slideshow chart renderers use same data as dashboard charts
+        renderSlideshowMonthlyExpenseChart() {
+            if (!window.Chart) return;
+            const ctx = document.getElementById('slideMonthlyExpenseChart').getContext('2d');
+            // Get current month's outflow breakdown by reason (category)
+            const month = (new Date()).getMonth()+1, year = (new Date()).getFullYear();
+            const outflows = this.transactions.filter(t => t.type === 'out' && (new Date(t.date)).getMonth()+1 === month && (new Date(t.date)).getFullYear() === year);
+            const reasons = {};
+            outflows.forEach(t => reasons[t.reason] = (reasons[t.reason]||0) + t.amount);
+            const labels = Object.keys(reasons).length ? Object.keys(reasons) : ["No data"];
+            const data = Object.keys(reasons).length ? Object.values(reasons) : [1];
+            if (this.slideshowMonthlyExpenseChart) this.slideshowMonthlyExpenseChart.destroy();
+            this.slideshowMonthlyExpenseChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [ '#FF6384', '#FFCE56', '#36A2EB', '#C9CBCF', '#9966FF', '#27ae60', '#e74c3c'],
+                        borderColor: '#fff',
+                    }]
+                },
+                options: {responsive:false}
+            });
+        }
+
+        renderSlideshowTrendChart() {
+            if (!window.Chart) return;
+            const ctx = document.getElementById('slideTrendChart').getContext('2d');
+            // Net cash by month for last 6 months (both inflow/outflow)
+            const months = [];
+            const monthMap = {};
+            for(let i=5; i>=0; i--) {
+                const date = new Date();
+                date.setMonth(date.getMonth() - i);
+                const m = (date.getMonth()+1).toString().padStart(2,'0');
+                const y = date.getFullYear();
+                const key = `${y}-${m}`;
+                months.push(key); monthMap[key]=0;
+            }
+            this.transactions.forEach(t => {
+                const d = new Date(t.date), key = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`;
+                if(monthMap[key] !== undefined) monthMap[key] += t.type === 'in' ? t.amount : -t.amount;
+            });
+            const data = months.map(m=>monthMap[m]);
+            if (this.slideshowTrendChart) this.slideshowTrendChart.destroy();
+            this.slideshowTrendChart = new Chart(ctx,{
+                type:'line',
+                data:{
+                    labels:months,
+                    datasets:[{
+                        label:"Monthly Net Cash",
+                        data:data,
+                        borderColor: "#36A2EB",
+                        backgroundColor:"rgba(54,162,235,0.16)",
+                        borderWidth:3,
+                        fill:true,
+                        tension:0.3
+                    }]
+                },
+                options:{responsive:false}
+            });
+        }
+
+        // Optional: Export transactions
+        exportData() {
+            const data = {
+                transactions: this.transactions,
+                openingCash: this.openingCash,
+                exportDate: new Date().toISOString()
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `store-cash-export-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    }
+    // Initialize StoreCashManager
+    document.addEventListener('DOMContentLoaded', () => {
+        window.storeCashManager = new StoreCashManager();
+        showSlide(slideIndex);
+    });
+    </script>
+</body>
+</html>
